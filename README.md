@@ -1,6 +1,8 @@
 # rydtip
 Rydberg physics toolkit in python
 
+Requires Scipy for CODATA2014 constands.
+
 ## notes
 If using jupyter, run with
 

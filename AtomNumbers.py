@@ -3,13 +3,20 @@
 
 # In[1]:
 
-import SIConsts as SI # change to Scipy Constants
+from scipy.constants import physical_constants as pc
 import numpy as np
 
 
 # ## Common functions
 
 # In[2]:
+
+me = pc['electron mass'][0]
+c = pc['speed of light in vacuum'][0]
+Ry = pc['Rydberg constant'][0]
+
+
+# In[3]:
 
 class Atom:
     def __init__(self, Name, Z, Inuc):
@@ -22,7 +29,7 @@ class Atom:
         self.FD1 = -1
 
 
-# In[3]:
+# In[4]:
 
 def QD(atom, n, l, j=-1):# TODO enter low-lying level explicitly
     js=str(j)
@@ -70,7 +77,7 @@ def QD(atom, n, l, j=-1):# TODO enter low-lying level explicitly
     
 
 
-# In[4]:
+# In[5]:
 
 def TermEnergy(atom, n, l, j):
     try:
@@ -93,17 +100,17 @@ def TermEnergy(atom, n, l, j):
 
 # ## Genernal Info
 
-# In[5]:
+# In[6]:
 
 Rb87=Atom('Rb87',37,1.5)
 Rb87.Configuration = '[Kr]5s1'
 Rb87.NGround = 5
 Rb87.FD1 = 3.7710746322085408911e14 # Maric et al (2008) http://dx.doi.org/10.1103/PhysRevA.77.032502
 Rb87.FD2 = 3.8423048457422908911e14 # Marian et al (2004) http://dx.doi.org/10.1126/science.1105660
-Rb87.LambdaD1 = SI.c/Rb87.FD1
-Rb87.LambdaD2 = SI.c/Rb87.FD2
-Rb87.KD1 = 2*np.pi*Rb87.FD1/SI.c
-Rb87.KD2 = 2*np.pi*Rb87.FD2/SI.c
+Rb87.LambdaD1 = c/Rb87.FD1
+Rb87.LambdaD2 = c/Rb87.FD2
+Rb87.KD1 = 2*np.pi*Rb87.FD1/c
+Rb87.KD2 = 2*np.pi*Rb87.FD2/c
 Rb87.Ahfs = {
         '5S1/2': 3.417341305452145e9 # Steck (2015) from [29]
         ,'5P1/2': 408.3295e6 # Maric et al (2008) http://dx.doi.org/10.1103/PhysRevA.77.032502
@@ -118,8 +125,8 @@ Rb87.Linewidth = {
         ,'5P3/2': 2*np.pi*6.0666e6 # Steck (2015) ?
     }
 Rb87.MassSI = 1.443160648e-25 # Steck (2015) [4]
-Rb87.RmeSI = SI.me/(1.0 + SI.me/Rb87.MassSI)
-Rb87.RySI = SI.RyINF*(Rb87.RmeSI/SI.me) # m^-1
+Rb87.RmeSI = me/(1.0 + me/Rb87.MassSI)
+Rb87.RySI = Ry*(Rb87.RmeSI/me) # m^-1
 Rb87.RyCGS = Rb87.RySI/100 # cm^-1
 Rb87.IsatD2 = {
         'cycling' : 16.6933 # W/m^2 Steck (2015) ?
@@ -134,7 +141,7 @@ Rb87.TermEnergyGround = -33690.8048 # cm^-1 ground state Hall http://dx.doi.org/
 
 # ## Select Experimental Spectral Lines
 
-# In[6]:
+# In[7]:
 
 Rb87.TermEnergy = { # explicit low lying level term energys
     '4' : { # n=4
@@ -224,7 +231,7 @@ Rb87.TermEnergy = { # explicit low lying level term energys
 
 # ## Quantum Defects
 
-# In[7]:
+# In[8]:
 
 Rb87.QD0 = [ # 0th order qd terms
     { # L = 0, S
@@ -281,7 +288,7 @@ Rb87.QD4 = [ # 4th order qd terms
 
 # ## Generating Quantum Defects from Explicit Spectral Lines
 
-# In[8]:
+# In[9]:
 
 # calculate defects for low-lying levels from the spectroscopy data
 Rb87.QD = {}
@@ -295,7 +302,7 @@ for n, nd in Rb87.TermEnergy.iteritems():
 
 # ## Verification of Defects with respect to Mark's old code
 
-# In[9]:
+# In[10]:
 
 print(QD(Rb87,20,0,0.5)-3.13178510955)
 print(QD(Rb87,9,1,1.5)-2.64897056637)
@@ -304,7 +311,7 @@ print(QD(Rb87,9,3,3.5)-0.0154780575013)
 print(QD(Rb87,9,4,4.5)-0)
 
 
-# In[10]:
+# In[11]:
 
 print(QD(Rb87,20,0)-3.13178510955)
 print(QD(Rb87,30,1)-2.64646359904)
@@ -313,16 +320,11 @@ print(QD(Rb87,9,3)-0.0154175880834)
 print(QD(Rb87,9,4)-0)
 
 
-# In[11]:
+# In[12]:
 
 print(QD(Rb87,5,0,0.5)-3.195237315299605)
 print(QD(Rb87,5,1,1.5)-2.70717821684838)
 print(QD(Rb87,5,2,2.5)-1.2934)
 print(QD(Rb87,6,0,0.5)-3.15506)
 print(QD(Rb87,6,1,1.5)-2.67036)
-
-
-# In[ ]:
-
-
 
