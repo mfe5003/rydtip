@@ -34,7 +34,7 @@ for n in range(0,150): # some of these are non-physical
 
 # ### S-lines
 
-# In[4]:
+# In[6]:
 
 plt.figure(figsize=(10,20))
 
@@ -48,12 +48,12 @@ for l in range(0,l_max+1):
 plt.xlabel('Orbital Angular Momentum (L)')
 plt.ylabel('Transition Energy (GHz)')
 plt.title('Rb87 Spectrum')
-plt.axis([-0.6, l_max+0.6, 1e-9*0.05*consts.c*TermEnergy(Rb87,5,0,'0.5')[0], -1e-9*1.05*consts.c*TermEnergy(Rb87,5,0,'0.5')[0]])
+plt.axis([-0.6, l_max+0.6, 1e-9*0.05*consts.c*TermEnergy(Rb87,State(5,0,0.5))[0], -1e-9*1.025*consts.c*TermEnergy(Rb87,State(5,0,0.5))[0]])
 
 plt.show()
 
 
-# In[5]:
+# In[7]:
 
 plt.figure(figsize=(10,20))
 
@@ -72,7 +72,7 @@ plt.show()
 
 # ## Compare to Mark's code with older values
 
-# In[6]:
+# In[8]:
 
 sI = State(5,0,0.5)
 test_cases = [
