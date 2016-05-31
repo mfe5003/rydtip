@@ -34,7 +34,7 @@ for n in range(0,150): # some of these are non-physical
 
 # ### S-lines
 
-# In[6]:
+# In[4]:
 
 plt.figure(figsize=(10,20))
 
@@ -53,7 +53,7 @@ plt.axis([-0.6, l_max+0.6, 1e-9*0.05*consts.c*TermEnergy(Rb87,State(5,0,0.5))[0]
 plt.show()
 
 
-# In[7]:
+# In[5]:
 
 plt.figure(figsize=(10,20))
 
@@ -72,7 +72,7 @@ plt.show()
 
 # ## Compare to Mark's code with older values
 
-# In[8]:
+# In[6]:
 
 sI = State(5,0,0.5)
 test_cases = [

@@ -83,6 +83,9 @@ class Atom:
         j_index = 0
       l_str = int(l2) + state.l*10
 
+    if l_str == 1:
+      l_str = '01'
+      
     js = ["jmjpm", "jpjpm", "jpjpp"][j_index]
     subs = (state.n, n_range[0], n_range[1])
     query = """SELECT n, {} FROM L{} WHERE np=? AND n>=? AND n<=?""".format(js, l_str)
@@ -104,6 +107,8 @@ class Atom:
       n2, l2, j2, mj2 = state2.state_tuple()
 
     l_str = l2 + l1*10 # matching the database table name L01: S->P
+    if l_str == 1:
+      l_str = '01'
     # kind of a dumb check but whatever
     if (l2 > 9) or (l1 > 9):
       raise KeyError
@@ -141,9 +146,13 @@ class Atom:
   # returns the c3 coefficient for the two states
   def c3(self, stateI1, stateI2, stateF1, stateF2):
     # electric dipole transitions
+    #print stateI1
+    #print stateI2
     if(abs(stateI1.l-stateF1.l) != 1):
+      #print(1,stateI1, stateF1, stateI1.l, stateF1.l)
       return 0
     if(abs(stateI2.l-stateF2.l) != 1):
+      #print(2,stateI2, stateF2, stateI2.l, stateF2.l)
       return 0
 
     p = stateF1.mj - stateI1.mj # -1,0,+1
@@ -179,7 +188,7 @@ class State:
     if self.l <= 2:
       self.l_label = ['S','P','D'][int(self.l)]
     else:
-      self.l_label = chr(ord('F')+(int(l)-3))
+      self.l_label = chr(ord('F')+(int(self.l)-3))
     # j    
     if self.j is None:
       self.j_label = ''
@@ -593,10 +602,10 @@ c[0]/TransitionFrequency(Rb87, s1, s2)[0]
 # In[21]:
 
 try:
-  Rb87.registerRMEdb(None, os.path.join('..',default_rmedb_path)) # just use the default
+  Rb87.registerRMEdb() # just use the default
 except IOError:
   try:
-    Rb87.registerRMEdb() # just use the default
+    Rb87.registerRMEdb(None, os.path.join('..',default_rmedb_path)) # just use the default
   except IOError:
     print('this is dumb')
 
