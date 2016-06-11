@@ -14,19 +14,19 @@ import datetime
 get_ipython().magic(u'matplotlib inline')
 
 
-# In[2]:
+# In[32]:
 
 sI1 = State(97, 2, 2.5, 2.5) # center molecular state
 sI2 = sI1
 ED_order = 2 # electric dipole transtitions
-E_cut = 1e9/consts.c # 1/m
-F_cut = 1 # c3/R^3 (GHz/um**3), only include state with non-negligable coulpings
+E_cut = 5e9/consts.c # 1/m
+F_cut = 1 # c3/R^3/dE > F_cut (GHz/um**3), only include state with non-negligable coulpings
 R0 = 3 # perform F_cut at R0 (um)
 
 
 # #### Find all states with same angular momentum as the center state within E_cut of the center
 
-# In[3]:
+# In[33]:
 
 E0 = TermEnergy(Rb87, sI1)[0]+TermEnergy(Rb87, sI2)[0] # center energy
 E_range = (consts.c*(E0-E_cut),consts.c*(E0+E_cut))
@@ -52,7 +52,7 @@ print(len(molecular_states[0]))
 
 # #### Find all states that couple to the previous order of states
 
-# In[4]:
+# In[34]:
 
 n1_range = (n1_min,n1_max)
 n2_range = (n2_min,n2_max)
@@ -63,7 +63,7 @@ for o in range(ED_order):
   temp = set()
   for ms in ms_class:
     #print ms[0]
-    t = ddi.filter_molecular_states(Rb87, ms[0][0], ms[0][1], ang_mom_list, E_range, F_cut, R0, n1_range, n2_range)
+    t = ddi.filter_molecular_states(Rb87, ms[0][0], ms[0][1], ang_mom_list, F_cut, R0, n1_range, n2_range)
     temp.update(t)
   molecular_states.append([])
   for x in temp:
@@ -75,14 +75,16 @@ for o in range(ED_order):
     molecular_states[o+1].append(((ts1,ts2),te))
 
 
-# In[5]:
+# In[35]:
 
 print(len(molecular_states[0]))
 print(len(molecular_states[1]))
 print(len(molecular_states[2]))
 
 
-# In[6]:
+# now build up the basis state from the calculation from all order of ED coupling
+
+# In[36]:
 
 basis = set()
 for ms_class in molecular_states:
@@ -96,7 +98,7 @@ for ms in basis:
   basis_states.append((State(ms[0][0],ms[0][1],ms[0][2],ms[0][3]), State(ms[1][0],ms[1][1],ms[1][2],ms[1][3])))
 
 
-# In[7]:
+# In[37]:
 
 fd = []
 for ms in basis_states:
@@ -106,7 +108,7 @@ forster_defects = np.array(fd)
 
 # ### Build the Hamiltonian
 
-# In[8]:
+# In[38]:
 
 dimension = len(basis) # add on the initial state
 Hcoupling = np.zeros((dimension,dimension))
@@ -120,7 +122,7 @@ for i in xrange(dimension):
       Hcoupling[j][i] = temp[0]
 
 
-# In[9]:
+# In[39]:
 
 fig = plt.figure(figsize=(6, 6))
 
@@ -141,29 +143,29 @@ plt.show()
 
 # #### verify at large R (100 um)
 
-# In[10]:
+# In[40]:
 
 cindex = np.abs(forster_defects).argsort()[0]
 
 
-# In[11]:
+# In[41]:
 
 ddi.getRelevantCouplings(Hcoupling, forster_defects, 100, 0.001)
 
 
-# In[12]:
+# In[42]:
 
 basis[cindex]
 
 
 # #### Calculate blockade curves
 
-# In[13]:
+# In[43]:
 
 data = []
 
 
-# In[14]:
+# In[44]:
 
 r_start = 3
 r_stop = 15
@@ -178,13 +180,13 @@ for r in np.linspace(r_start,r_stop,samples):
     data = data + ddi.getRelevantCouplings(Hcoupling, forster_defects, r, 0.01, 1.0)
 
 
-# In[15]:
+# In[45]:
 
 mark_r = [0.20202, 0.40404, 0.606061, 0.808081, 1.0101, 1.21212, 1.41414, 1.61616, 1.81818, 2.0202, 2.22222, 2.42424, 2.62626, 2.82828, 3.0303, 3.23232, 3.43434, 3.63636, 3.83838, 4.0404, 4.24242, 4.44444, 4.64646, 4.84848, 5.05051, 5.25253, 5.45455, 5.65657, 5.85859, 6.06061, 6.26263, 6.46465, 6.66667, 6.86869, 7.07071, 7.27273, 7.47475, 7.67677, 7.87879, 8.08081, 8.28283, 8.48485, 8.68687, 8.88889, 9.09091, 9.29293, 9.49495, 9.69697, 9.89899, 10.101, 10.303, 10.5051, 10.7071, 10.9091, 11.1111, 11.3131, 11.5152, 11.7172, 11.9192, 12.1212, 12.3232, 12.5253, 12.7273, 12.9293, 13.1313, 13.3333, 13.5354, 13.7374, 13.9394, 14.1414, 14.3434, 14.5455, 14.7475, 14.9495, 15.1515, 15.3535, 15.5556, 15.7576, 15.9596, 16.1616, 16.3636, 16.5657, 16.7677, 16.9697, 17.1717, 17.3737, 17.5758, 17.7778, 17.9798, 18.1818, 18.3838, 18.5859, 18.7879, 18.9899, 19.1919, 19.3939, 19.596, 19.798, 20.]
 mark_B = [-10966.3, -1370.79, -406.16, -171.349, -87.7303, -50.7695, -31.971, -21.4175, -15.0414, -10.9642, -8.23635, -6.34261, -4.98687, -3.99069, -3.24218, -2.66872, -2.22181, -1.86818, -1.58454, -1.35422, -1.16507, -1.00814, -0.876692, -0.76563, -0.671032, -0.589863, -0.51975, -0.458827, -0.405612, -0.358925, -0.317818, -0.281522, -0.24941, -0.220963, -0.195746, -0.17339, -0.153577, -0.136026, -0.120493, -0.106757, -0.0946198, -0.0839036, -0.074448, -0.0661083, -0.0587547, -0.0522711, -0.0465538, -0.0415106, -0.0370599, -0.0331295, -0.0296559, -0.0265832, -0.0238624, -0.0214505, -0.01931, -0.017408, -0.0157157, -0.0142081, -0.0128632, -0.0116618, -0.0105871, -0.00962452, -0.00876107, -0.00798552, -0.00728798, -0.00665975, -0.00609318, -0.00558157, -0.00511896, -0.00470014, -0.00432048, -0.0039759, -0.00366277, -0.00337787, -0.00311837, -0.00288173, -0.00266568, -0.00246822, -0.00228756, -0.00212208, -0.00197036, -0.0018311, -0.00170316, -0.0015855, -0.0014772, -0.00137741, -0.00128538, -0.00120043, -0.00112194, -0.00104937, -0.000982209, -0.00092, -0.000862334, -0.000808835, -0.000759164, -0.000713011, -0.000670096, -0.00063016, -0.000592972]
 
 
-# In[16]:
+# In[46]:
 
 plt.figure(figsize=(12,8))
 

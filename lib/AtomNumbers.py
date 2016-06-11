@@ -73,6 +73,7 @@ class Atom:
       else:
         j_index = 0
       l_str = int(l2)*10 + state.l
+      query = """SELECT n, {} FROM L{} WHERE np=? AND n>=? AND n<=?"""
 
     else: # otherwise do the normal order
       if state.j == float(j2):
@@ -82,17 +83,18 @@ class Atom:
       else:
         j_index = 0
       l_str = int(l2) + state.l*10
+      query = """SELECT np, {} FROM L{} WHERE n=? AND np>=? AND np<=?"""
 
     if l_str == 1:
       l_str = '01'
       
     js = ["jmjpm", "jpjpm", "jpjpp"][j_index]
     subs = (state.n, n_range[0], n_range[1])
-    query = """SELECT n, {} FROM L{} WHERE np=? AND n>=? AND n<=?""".format(js, l_str)
+    #print(query,subs)
 
     conn = sqlite3.connect(self.rme_db)
     c = conn.cursor()
-    return c.execute(query, subs)
+    return c.execute(query.format(js, l_str), subs)
       
   def RME(self, state1, state2):
     if self.rme_db is None:
@@ -125,7 +127,8 @@ class Atom:
     js = ["jmjpm", "jpjpm", "jpjpp"][j_index]
     subs = (n1, n2)
     query = """SELECT {} FROM L{} WHERE n=? AND np=? LIMIT 1""".format(js, l_str)
-
+    #print(query,subs)
+    
     conn = sqlite3.connect(self.rme_db)
     c = conn.cursor()
     c.execute(query, subs)
@@ -620,21 +623,41 @@ for rme_new, rme_old in test_cases:
         print("{:.6f} ({:.6f}): {:.6f}".format(rme_new[0], rme_old, rme_new[0]- rme_old))
 
 
+# In[26]:
+
+for row in Rb87.RMEs(State(97,2,2.5,2.5), [90,110], 3, 3.5):
+  if __name__ == "__main__":
+    print (row[0],
+          Rb87.RMEs(State(97,2,2.5,2.5), [row[0],row[0]], 3, 3.5).fetchone()[1],
+          Rb87.RME(State(97,2,2.5,2.5),State(row[0],3,3.5,3.5))[0]
+    )
+
+
+# In[27]:
+
+for row in Rb87.RMEs(State(97,3,3.5,3.5), [90,110], 2, 2.5):
+  if __name__ == "__main__":
+    print (row[0],
+          Rb87.RMEs(State(97,3,3.5,3.5), [row[0],row[0]], 2, 2.5).fetchone()[1],
+          Rb87.RME(State(97,3,3.5,3.5),State(row[0],2,2.5,2.5))[0]
+    )
+
+
 # ## Verification of Angular Matrix Elements
 
-# In[22]:
+# In[23]:
 
 N(Rb87.AME(State(5,1,1.5,0.5),State(5,2,2.5,1.5),1))
 
 
-# In[23]:
+# In[24]:
 
 Rb87.AME(State(5,1,1.5,0.5),State(5,2,2.5,1.5),1)
 
 
 # ## Verification of C_3 terms
 
-# In[24]:
+# In[25]:
 
 s0=State(97,2,2.5,2.5)
 sf1=State(99,1,1.5,1.5)

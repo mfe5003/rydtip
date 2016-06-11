@@ -74,17 +74,20 @@ ang_mom_list=list(next_ED_order([[(State(97,2,2.5,2.5),State(97,2,2.5,2.5)),5555
 
 # In[7]:
 
+ang_mom_list
+
+
+# In[19]:
+
 # returns list of states passing the n-level, energy-level, and C3 coupling strength cut at r=R0 (C3/R0**3)
-def filter_molecular_states(atom, state1, state2, mol_angmon, E_range, F_cut, R0, n1_range, n2_range):
-  # save states as tuples first, then convert into State c2asses
+def filter_molecular_states(atom, state1, state2, mol_angmon, F_cut, R0, n1_range, n2_range):
+  # save states as tuples first, then convert into State classes
   # since I doubt that the set stuff will work correctly with classes
-  newStates = set() 
-  # sort the energy range to standardize
-  e_low = min(abs(E_range[0]),abs(E_range[1]))
-  e_high = max(abs(E_range[0]),abs(E_range[1]))
+  newStates = set()
+  E0 = abs(consts.c*(TermEnergy(atom, state1)[0] + TermEnergy(atom, state2)[0])) # Hz
   for ang_states in mol_angmon:
     #print ang_states
-    p = state1.mj - ang_states[0][-1]
+    p = ang_states[0][-1] - state1.mj
     dl1 = state1.l - ang_states[0][0]
     dl2 = state2.l - ang_states[1][0]
     if (abs(p)<=1) and (abs(dl1)==1) and (abs(dl2)==1):   
@@ -95,32 +98,30 @@ def filter_molecular_states(atom, state1, state2, mol_angmon, E_range, F_cut, R0
       ang_factor = atom.AME(state1, State(0,l1b,j1b,mj1b), p)
       ang_factor *= atom.AME(state2, State(0,l2b,j2b,mj2b), -p)
       ang_factor *= clebsch_gordan(1,1,2,p,-p,0)
-      # now check all permutations of the n-levels in the range
-      for n1b in range(n1_range[0],n1_range[1]):
-        for n2b in range(n2_range[0],n2_range[1]):
-          state1b = State(n1b,l1b,j1b,mj1b)
-          state2b = State(n2b,l2b,j2b,mj2b)
+      # calculate threshold to add molecular state to the basis
+      if ang_factor != 0:
+        cut = abs(N(F_cut*R0**3/(ang_factor*atom.GHz_um3_factor*sqrt(6.0))))
+        #print("cut: {}".format(cut))
+        # now check all permutations of the n-levels in the range
+        s1bs = [ [ (x[0],)+ang_states[0], x[1]] for x in atom.RMEs(state1,n1_range,l1b,j1b) ]
+        s2bs = [ [ (x[0],)+ang_states[1], x[1]] for x in atom.RMEs(state2,n2_range,l2b,j2b) ]
+        for ms in itertools.product(s1bs,s2bs):
+          state1b = State(ms[0][0][0],ms[0][0][1],ms[0][0][2],ms[0][0][3])
+          state2b = State(ms[1][0][0],ms[1][0][1],ms[1][0][2],ms[1][0][3])
           # check the energy first since its easier
-          E = abs(consts.c*(TermEnergy(atom, state1b)[0] + TermEnergy(atom, state2b)[0]))
-          if (E>e_low) and (E<e_high):
-            c3 = atom.c3(state1,state2,state1b,state2b)
-            if c3 != 0:
-              # then check the coupling strength
-              c3=c3[0] # GHz/um**3
-              F = c3*(R0**3)
-              if F > F_cut:
-                #print(state1b,state2b,F)
-                newStates.add( ((n1b,l1b,j1b,mj1b),(n2b,l2b,j2b,mj2b)) )
+          E = abs(consts.c*(TermEnergy(atom, state1b)[0] + TermEnergy(atom, state2b)[0])) # Hz
+               
+          if abs(ms[0][1]*ms[1][1]/((E-E0)*1e-9)) > cut:
+            #print("E (GHz): {}".format((E-E0)*1e-9))
+            newStates.add((ms[0][0],ms[1][0]))
   return newStates
 
 
-# In[8]:
+# In[20]:
 
 if __name__ == "__main__":
   sI=State(97,2,2.5,2.5)
-  E0 = consts.c*(TermEnergy(Rb87,sI)[0]+TermEnergy(Rb87,sI)[0]) # Hz
-  e_range = (E0-1e9,E0+1e9)
-  print(filter_molecular_states(Rb87, sI, sI, ang_mom_list, e_range, 10, 3, (50,150),(50,150)))
+  print(filter_molecular_states(Rb87, sI, sI, ang_mom_list, 1, 3, (80,120),(80,120)))
 
 
 # In[ ]:
