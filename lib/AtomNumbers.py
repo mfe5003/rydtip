@@ -3,6 +3,7 @@
 
 # In[1]:
 
+
 from scipy.constants import physical_constants as pc
 import scipy.constants as consts
 import numpy as np
@@ -16,6 +17,7 @@ from sympy.physics.wigner import clebsch_gordan, wigner_6j
 
 # In[2]:
 
+
 me = pc['electron mass']
 c = pc['speed of light in vacuum']
 Ry = pc['Rydberg constant']
@@ -27,204 +29,208 @@ hbar = consts.hbar
 
 # In[3]:
 
+
 default_rmedb_path = os.path.join('data','RMEdbs')
 
 
 # In[4]:
 
+
 class Atom:
-  def __init__(self, Name, Z, Inuc):
-    self.Name = Name
-    self.Z = Z
-    self.Inuc = Inuc
-    self.Configuration = -1
-    self.NGround = -1
-    self.FD2 = -1
-    self.FD1 = -1
-    self.GHz_um3_factor = 1e9*(1/(4*np.pi*e0))*e**2
-    self.GHz_um3_factor *= a0[0]**2/(2*np.pi*hbar)
-    try:
-      self.registerRMEdb()
-    except IOError:
-      pass
+    def __init__(self, Name, Z, Inuc):
+        self.Name = Name
+        self.Z = Z
+        self.Inuc = Inuc
+        self.Configuration = -1
+        self.NGround = -1
+        self.FD2 = -1
+        self.FD1 = -1
+        self.GHz_um3_factor = 1e9*(1/(4*np.pi*e0))*e**2
+        self.GHz_um3_factor *= a0[0]**2/(2*np.pi*hbar)
+        try:
+            self.registerRMEdb()
+        except IOError:
+            pass
   
 
-  def registerRMEdb(self, db_file=None, db_path=default_rmedb_path ):
-    if db_file is None:
-      db_file = self.Name + '.sqlite3'
-    db_file = os.path.join(db_path, db_file)
-    if os.path.isfile(db_file):
-      self.rme_db = db_file
-    else:
-      self.rme_db = None
-      print("No database file found at {}".format(db_file))
-      raise IOError
+    def registerRMEdb(self, db_file=None, db_path=default_rmedb_path ):
+        if db_file is None:
+            db_file = self.Name + '.sqlite3'
+        db_file = os.path.join(db_path, db_file)
+        if os.path.isfile(db_file):
+            self.rme_db = db_file
+        else:
+            self.rme_db = None
+            print("No database file found at {}".format(db_file))
+            raise IOError
       
-  def RMEs(self, state, n_range, l2, j2):
-    if self.rme_db is None:
-      raise IOError
+    def RMEs(self, state, n_range, l2, j2):
+        if self.rme_db is None:
+            raise IOError
+
+        # assumes l2 >= l1, if not swap
+        if int(l2) < state.l:
+            if state.j == float(j2):
+                j_index = 1
+            elif float(j2) > int(l2):
+                j_index = 2
+            else:
+                j_index = 0
+            l_str = int(l2)*10 + state.l
+            query = """SELECT n, {} FROM L{} WHERE np=? AND n>=? AND n<=?"""
+
+        else: # otherwise do the normal order
+            if state.j == float(j2):
+                j_index = 1
+            elif state.j > state.l:
+                j_index = 2
+            else:
+                j_index = 0
+            l_str = int(l2) + state.l*10
+            query = """SELECT np, {} FROM L{} WHERE n=? AND np>=? AND np<=?"""
+
+        if l_str == 1:
+            l_str = '01'
+
+        js = ["jmjpm", "jpjpm", "jpjpp"][j_index]
+        subs = (state.n, n_range[0], n_range[1])
+        #print(query,subs)
+
+        conn = sqlite3.connect(self.rme_db)
+        c = conn.cursor()
+        return c.execute(query.format(js, l_str), subs)
       
-    # assumes l2 >= l1, if not swap
-    if int(l2) < state.l:
-      if state.j == float(j2):
-        j_index = 1
-      elif float(j2) > int(l2):
-        j_index = 2
-      else:
-        j_index = 0
-      l_str = int(l2)*10 + state.l
-      query = """SELECT n, {} FROM L{} WHERE np=? AND n>=? AND n<=?"""
+    def RME(self, state1, state2):
+        if self.rme_db is None:
+            raise IOError
 
-    else: # otherwise do the normal order
-      if state.j == float(j2):
-        j_index = 1
-      elif state.j > state.l:
-        j_index = 2
-      else:
-        j_index = 0
-      l_str = int(l2) + state.l*10
-      query = """SELECT np, {} FROM L{} WHERE n=? AND np>=? AND np<=?"""
+        # assumes l2 >= l1, if not swap
+        if state2.l < state1.l:
+            n1, l1, j1, mj1 = state2.state_tuple()
+            n2, l2, j2, mj2 = state1.state_tuple()
+        else: # otherwise do the normal order
+            n1, l1, j1, mj1 = state1.state_tuple()
+            n2, l2, j2, mj2 = state2.state_tuple()
 
-    if l_str == 1:
-      l_str = '01'
-      
-    js = ["jmjpm", "jpjpm", "jpjpp"][j_index]
-    subs = (state.n, n_range[0], n_range[1])
-    #print(query,subs)
+        l_str = l2 + l1*10 # matching the database table name L01: S->P
+        if l_str == 1:
+            l_str = '01'
+        # kind of a dumb check but whatever
+        if (l2 > 9) or (l1 > 9):
+            raise KeyError
 
-    conn = sqlite3.connect(self.rme_db)
-    c = conn.cursor()
-    return c.execute(query.format(js, l_str), subs)
-      
-  def RME(self, state1, state2):
-    if self.rme_db is None:
-      raise IOError
+        # pick the j levels jm = j-0.5, jp = j+0.5, j'm = j'-0.5, j'p=j'+0.5
+        # jmj'p is non-physical for ED transition
+        if j1 == j2:
+            j_index = 1
+        elif j1 > l1:
+            j_index = 2
+        else:
+            j_index = 0
 
-    # assumes l2 >= l1, if not swap
-    if state2.l < state1.l:
-      n1, l1, j1, mj1 = state2.state_tuple()
-      n2, l2, j2, mj2 = state1.state_tuple()
-    else: # otherwise do the normal order
-      n1, l1, j1, mj1 = state1.state_tuple()
-      n2, l2, j2, mj2 = state2.state_tuple()
+        js = ["jmjpm", "jpjpm", "jpjpp"][j_index]
+        subs = (n1, n2)
+        query = """SELECT {} FROM L{} WHERE n=? AND np=? LIMIT 1""".format(js, l_str)
+        #print(query,subs)
 
-    l_str = l2 + l1*10 # matching the database table name L01: S->P
-    if l_str == 1:
-      l_str = '01'
-    # kind of a dumb check but whatever
-    if (l2 > 9) or (l1 > 9):
-      raise KeyError
-      
-    # pick the j levels jm = j-0.5, jp = j+0.5, j'm = j'-0.5, j'p=j'+0.5
-    # jmj'p is non-physical for ED transition
-    if j1 == j2:
-      j_index = 1
-    elif j1 > l1:
-      j_index = 2
-    else:
-      j_index = 0
-
-    js = ["jmjpm", "jpjpm", "jpjpp"][j_index]
-    subs = (n1, n2)
-    query = """SELECT {} FROM L{} WHERE n=? AND np=? LIMIT 1""".format(js, l_str)
-    #print(query,subs)
-    
-    conn = sqlite3.connect(self.rme_db)
-    c = conn.cursor()
-    c.execute(query, subs)
-    return [c.fetchone()[0], 'a0?', None]
+        conn = sqlite3.connect(self.rme_db)
+        c = conn.cursor()
+        c.execute(query, subs)
+        return [c.fetchone()[0], 'a0?', None]
   
-  # angular component of matrix element
-  # p is -1, 0, 1
-  # We use a symbolic package to deal with the wigner symbols to avoid numerical errors
-  def AME(self, state1, state2, p):
-    l1, j1, m1 = state1.angular_momentum()
-    l2, j2, m2 = state2.angular_momentum()
-    res =(-1)**int(j1+l2-0.5)*sqrt((2*j1+1)*(2*l1+1))
-    res *= clebsch_gordan(j1, 1, j2, m1, p, m2)
-    res *= clebsch_gordan(l1, 1, l2, 0, 0, 0)
-    res *= wigner_6j(l1,0.5,j1,j2,1,l2)
-    return res
-  
-  # returns the c3 coefficient for the two states
-  def c3(self, stateI1, stateI2, stateF1, stateF2):
-    # electric dipole transitions
-    #print stateI1
-    #print stateI2
-    if(abs(stateI1.l-stateF1.l) != 1):
-      #print(1,stateI1, stateF1, stateI1.l, stateF1.l)
-      return 0
-    if(abs(stateI2.l-stateF2.l) != 1):
-      #print(2,stateI2, stateF2, stateI2.l, stateF2.l)
-      return 0
+    # angular component of matrix element
+    # p is -1, 0, 1
+    # We use a symbolic package to deal with the wigner symbols to avoid numerical errors
+    def AME(self, state1, state2, p):
+        l1, j1, m1 = state1.angular_momentum()
+        l2, j2, m2 = state2.angular_momentum()
+        res =(-1)**int(j1+l2-0.5)*sqrt((2*j1+1)*(2*l1+1))
+        res *= clebsch_gordan(j1, 1, j2, m1, p, m2)
+        res *= clebsch_gordan(l1, 1, l2, 0, 0, 0)
+        res *= wigner_6j(l1,0.5,j1,j2,1,l2)
+        return res
 
-    p = stateF1.mj - stateI1.mj # -1,0,+1
-    if abs(p)>1:
-      return 0
-    if stateI2.mj - stateF2.mj != p: # dmj = 0
-      return 0
+    # returns the c3 coefficient for the two states
+    def c3(self, stateI1, stateI2, stateF1, stateF2):
+        # electric dipole transitions
+        #print stateI1
+        #print stateI2
+        if(abs(stateI1.l-stateF1.l) != 1):
+            #print(1,stateI1, stateF1, stateI1.l, stateF1.l)
+            return 0
+        if(abs(stateI2.l-stateF2.l) != 1):
+            #print(2,stateI2, stateF2, stateI2.l, stateF2.l)
+            return 0
 
-    a = self.AME(stateI1, stateF1, p)*self.RME(stateI1, stateF1)[0]
-    b = self.AME(stateI2, stateF2, -p)*self.RME(stateI2, stateF2)[0]
-    c = clebsch_gordan(1,1,2,p,-p,0)
-    return [N(-self.GHz_um3_factor*sqrt(6)*c*a*b), 'GHz/um**3', None]
+        p = stateF1.mj - stateI1.mj # -1,0,+1
+        if abs(p)>1:
+            return 0
+        if stateI2.mj - stateF2.mj != p: # dmj = 0
+            return 0
+
+        a = self.AME(stateI1, stateF1, p)*self.RME(stateI1, stateF1)[0]
+        b = self.AME(stateI2, stateF2, -p)*self.RME(stateI2, stateF2)[0]
+        c = clebsch_gordan(1,1,2,p,-p,0)
+        return [N(-self.GHz_um3_factor*sqrt(6)*c*a*b), 'GHz/um**3', None]
 
 
 # In[5]:
 
+
 class State:
-  def __init__(self, n, l, j=None, mj=None):
-    self.n = int(n)
-    self.l = int(l)
-    if j is None:
-      self.j = j
-    else:
-        self.j = float(j)
-    if mj is None:
-      self.mj = mj
-    else:
-      self.mj = float(mj)
-    self.make_configuration()
+    def __init__(self, n, l, j=None, mj=None):
+        self.n = int(n)
+        self.l = int(l)
+        if j is None:
+            self.j = j
+        else:
+            self.j = float(j)
+        if mj is None:
+            self.mj = mj
+        else:
+            self.mj = float(mj)
+        self.make_configuration()
     
-  def make_configuration(self):
-    # l
-    if self.l <= 2:
-      self.l_label = ['S','P','D'][int(self.l)]
-    else:
-      self.l_label = chr(ord('F')+(int(self.l)-3))
-    # j    
-    if self.j is None:
-      self.j_label = ''
-    else:
-      if self.j - int(self.j) < 0.5:# is j an int or half int
-        self.j_label = str(int(self.j))
-      else:
-        self.j_label = '/'.join([str(int(2*self.j)),'2'])
-        #print(self.j_label)
-    # mj
-    if self.mj is None:
-      self.mj_label = ''
-    elif abs(self.mj - int(self.mj)) < 0.5:
-      self.mj_label = str(int(self.mj))
-    else:
-      self.mj_label = '/'.join([str(int(2*self.mj)),'2'])
+    def make_configuration(self):
+        # l
+        if self.l <= 2:
+            self.l_label = ['S','P','D'][int(self.l)]
+        else:
+            self.l_label = chr(ord('F')+(int(self.l)-3))
+        # j    
+        if self.j is None:
+            self.j_label = ''
+        else:
+            if self.j - int(self.j) < 0.5:# is j an int or half int
+                self.j_label = str(int(self.j))
+            else:
+                self.j_label = '/'.join([str(int(2*self.j)),'2'])
+            #print(self.j_label)
+        # mj
+        if self.mj is None:
+            self.mj_label = ''
+        elif abs(self.mj - int(self.mj)) < 0.5:
+            self.mj_label = str(int(self.mj))
+        else:
+            self.mj_label = '/'.join([str(int(2*self.mj)),'2'])
 
-  def __repr__(self):
-    conf_str = str(self.n)+self.l_label
-    if self.j_label != '':
-      conf_str += '_'+self.j_label
-      if self.mj_label != '':
-        conf_str += ', mj='+self.mj_label
-    return conf_str
+    def __repr__(self):
+        conf_str = str(self.n)+self.l_label
+        if self.j_label != '':
+            conf_str += '_'+self.j_label
+            if self.mj_label != '':
+                conf_str += ', mj='+self.mj_label
+        return conf_str
 
-  def state_tuple(self):
-    return (self.n, self.l, self.j, self.mj)
+    def state_tuple(self):
+        return (self.n, self.l, self.j, self.mj)
     
-  def angular_momentum(self):
-    return self.state_tuple()[1:]
+    def angular_momentum(self):
+        return self.state_tuple()[1:]
 
 
 # In[6]:
+
 
 # adds error terms in quadrature
 def error_adder(*errTerms):
@@ -237,6 +243,7 @@ def error_adder(*errTerms):
 
 
 # In[7]:
+
 
 def QD(atom, state):# TODO enter low-lying level explicitly
     n, l, j, mj = state.state_tuple()
@@ -280,6 +287,7 @@ def QD(atom, state):# TODO enter low-lying level explicitly
 
 # In[8]:
 
+
 # returns the ionization energy for the input atom in the format
 # [ value, unit, uncertainty ], similar to scipy.constants
 def TermEnergy(atom, state):
@@ -309,6 +317,7 @@ def TermEnergy(atom, state):
 
 # In[9]:
 
+
 def q_adder(q1, q2):
     if q1[1] != q2[1]:
         raise UnitError
@@ -320,6 +329,7 @@ def q_adder(q1, q2):
 
 
 # In[10]:
+
 
 def TransitionFrequency(atom, state1, state2):
     qd1 = QD(atom, state1)
@@ -333,6 +343,7 @@ def TransitionFrequency(atom, state1, state2):
 # ## Genernal Info
 
 # In[11]:
+
 
 Rb87=Atom('Rb87',37,1.5)
 Rb87.Configuration = '[Kr]5s1'
@@ -349,6 +360,7 @@ Rb87.TermEnergyGround = [-3369080.48, '1/m', 0.02] # ground state Hall http://dx
 
 
 # In[12]:
+
 
 Rb87.FD1 = [3.7710746322085408911e14, 'Hz', None] # Maric et al (2008) http://dx.doi.org/10.1103/PhysRevA.77.032502
 Rb87.FD2 = [3.8423048457422908911e14, 'Hz', None] # Marian et al (2004) http://dx.doi.org/10.1126/science.1105660
@@ -373,6 +385,7 @@ Rb87.Linewidth = {
 
 # In[13]:
 
+
 Rb87.IsatD2 = {
         'cycling' : [16.6933, 'W/m^2', 0.0035 ] # Steck (2015) ?
         ,'isotropic' : [35.7713, 'W/m^2', 0.0074 ] # Steck (2015) ?
@@ -386,6 +399,7 @@ Rb87.IsatD1 = {
 # ## Select Experimental Spectral Lines
 
 # In[14]:
+
 
 Rb87.TermEnergy = { # explicit low lying level term energys
     '4' : { # n=4
@@ -479,6 +493,7 @@ Rb87.TermEnergy = { # explicit low lying level term energys
 
 # In[15]:
 
+
 Rb87.QD0 = [ # 0th order qd terms
     { # L = 0, S
         '0.5' : [3.1311804, '', None]
@@ -536,13 +551,14 @@ Rb87.QD4 = [ # 4th order qd terms
 
 # In[16]:
 
+
 # calculate defects for low-lying levels from the spectroscopy data
 Rb87.QD = {}
-for n, nd in Rb87.TermEnergy.iteritems():
+for n, nd in Rb87.TermEnergy.items():
     Rb87.QD[n] = {}
-    for l, ld in nd.iteritems():
+    for l, ld in nd.items():
         Rb87.QD[n][l]={}
-        for j, jd in ld.iteritems():
+        for j, jd in ld.items():
             term = TermEnergy(Rb87, State(n, l, j))
             try:
                 uncert = error_adder( Rb87.Rydberg[2]/(2*np.sqrt(-Rb87.Rydberg[0]*term[0])), term[2]*np.sqrt(-Rb87.Rydberg[0]/(4*(term[0]**3))) )
@@ -555,10 +571,12 @@ for n, nd in Rb87.TermEnergy.iteritems():
 
 # In[17]:
 
+
 QD(Rb87,State(9,1,1.5))
 
 
 # In[18]:
+
 
 #sI = State(5,0,0.5)
 test_cases = [
@@ -586,12 +604,14 @@ for qd_new, qd_old in test_cases:
 
 # In[19]:
 
+
 s1 = State(5,0,0.5)
 s2 = State(5,1,1.5)
 TransitionFrequency(Rb87, s1, s2)
 
 
 # In[20]:
+
 
 s1 = State(5,1,1.5)
 s2 = State(97,2,2.5)
@@ -604,13 +624,14 @@ c[0]/TransitionFrequency(Rb87, s1, s2)[0]
 
 # In[21]:
 
+
 try:
-  Rb87.registerRMEdb() # just use the default
+    Rb87.registerRMEdb() # just use the default
 except IOError:
-  try:
-    Rb87.registerRMEdb(None, os.path.join('..',default_rmedb_path)) # just use the default
-  except IOError:
-    print('this is dumb')
+    try:
+        Rb87.registerRMEdb(None, os.path.join('..',default_rmedb_path)) # just use the default
+    except IOError:
+        print('this is dumb')
 
 test_cases = [
   ( Rb87.RME(State(12, 2, 1.5), State(11, 1, 1.5)), -2.51450167632 ),
@@ -625,32 +646,36 @@ for rme_new, rme_old in test_cases:
 
 # In[26]:
 
+
 for row in Rb87.RMEs(State(97,2,2.5,2.5), [90,110], 3, 3.5):
-  if __name__ == "__main__":
-    print (row[0],
-          Rb87.RMEs(State(97,2,2.5,2.5), [row[0],row[0]], 3, 3.5).fetchone()[1],
-          Rb87.RME(State(97,2,2.5,2.5),State(row[0],3,3.5,3.5))[0]
-    )
+    if __name__ == "__main__":
+        print (row[0],
+              Rb87.RMEs(State(97,2,2.5,2.5), [row[0],row[0]], 3, 3.5).fetchone()[1],
+              Rb87.RME(State(97,2,2.5,2.5),State(row[0],3,3.5,3.5))[0]
+        )
 
 
 # In[27]:
 
+
 for row in Rb87.RMEs(State(97,3,3.5,3.5), [90,110], 2, 2.5):
-  if __name__ == "__main__":
-    print (row[0],
-          Rb87.RMEs(State(97,3,3.5,3.5), [row[0],row[0]], 2, 2.5).fetchone()[1],
-          Rb87.RME(State(97,3,3.5,3.5),State(row[0],2,2.5,2.5))[0]
-    )
+    if __name__ == "__main__":
+        print (row[0],
+              Rb87.RMEs(State(97,3,3.5,3.5), [row[0],row[0]], 2, 2.5).fetchone()[1],
+              Rb87.RME(State(97,3,3.5,3.5),State(row[0],2,2.5,2.5))[0]
+        )
 
 
 # ## Verification of Angular Matrix Elements
 
 # In[23]:
 
+
 N(Rb87.AME(State(5,1,1.5,0.5),State(5,2,2.5,1.5),1))
 
 
 # In[24]:
+
 
 Rb87.AME(State(5,1,1.5,0.5),State(5,2,2.5,1.5),1)
 
@@ -658,6 +683,7 @@ Rb87.AME(State(5,1,1.5,0.5),State(5,2,2.5,1.5),1)
 # ## Verification of C_3 terms
 
 # In[25]:
+
 
 s0=State(97,2,2.5,2.5)
 sf1=State(99,1,1.5,1.5)

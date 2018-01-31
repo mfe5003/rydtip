@@ -3,15 +3,17 @@
 
 # In[1]:
 
+
 import scipy.constants as consts
 from lib.AtomNumbers import QD, Rb87, State, TransitionFrequency, TermEnergy
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-get_ipython().magic(u'matplotlib inline')
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 # In[2]:
+
 
 s1 = State(5,0,0.5)
 s2 = State(5,1,1.5)
@@ -19,6 +21,7 @@ TransitionFrequency(Rb87, s1, s2)
 
 
 # In[3]:
+
 
 spectral_lines = []
 n_max = 150
@@ -34,17 +37,18 @@ for n in range(0,150): # some of these are non-physical
 
 # ### S-lines
 
-# In[4]:
+# In[6]:
+
 
 plt.figure(figsize=(10,20))
 
 for l in range(0,l_max+1):
-  for j in np.arange(abs(l-0.5),l+1):
-    if l < 2:
-      n_min = 5
-    else:
-      n_min = 5 - (l-1)
-    plt.hlines([spectral_lines[n][l][str(j)][0]*1e-9 for n in range(n_min,n_max)], [l-0.3], [l+0.3])
+    for j in np.arange(abs(l-0.5),l+1):
+        if l < 2:
+            n_min = 5
+        else:
+            n_min = 5 - (l-1)
+        plt.hlines([spectral_lines[n][l][str(j)][0]*1e-9 for n in range(n_min,n_max)], [l-0.3], [l+0.3])
 plt.xlabel('Orbital Angular Momentum (L)')
 plt.ylabel('Transition Energy (GHz)')
 plt.title('Rb87 Spectrum')
@@ -53,15 +57,16 @@ plt.axis([-0.6, l_max+0.6, 1e-9*0.05*consts.c*TermEnergy(Rb87,State(5,0,0.5))[0]
 plt.show()
 
 
-# In[5]:
+# In[7]:
+
 
 plt.figure(figsize=(10,20))
 
 f_0 = spectral_lines[97][2]['2.5'][0]
 for l in range(0,l_max+1):
-  for j in np.arange(abs(l-0.5),l+1):
-    n_min=80
-    plt.hlines([(spectral_lines[n][l][str(j)][0]-f_0)*1e-9 for n in range(n_min,n_max)], [l-0.3], [l+0.3])
+    for j in np.arange(abs(l-0.5),l+1):
+        n_min=80
+        plt.hlines([(spectral_lines[n][l][str(j)][0]-f_0)*1e-9 for n in range(n_min,n_max)], [l-0.3], [l+0.3])
 plt.xlabel('Orbital Angular Momentum (L)')
 plt.ylabel('Transition Energy Relative to 97D_5/2 (GHz)')
 plt.title('Rb87 Spectrum')
@@ -72,7 +77,8 @@ plt.show()
 
 # ## Compare to Mark's code with older values
 
-# In[6]:
+# In[8]:
+
 
 sI = State(5,0,0.5)
 test_cases = [
@@ -88,9 +94,4 @@ test_cases = [
 for s, f_old in test_cases:
     f_new = TransitionFrequency(Rb87, sI, s)
     print("{}\t: {} {}".format(s, f_new[0] - f_old, f_new[1]))
-
-
-# In[ ]:
-
-
 
