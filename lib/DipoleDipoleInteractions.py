@@ -3,7 +3,7 @@
 
 # In[1]:
 
-from AtomNumbers import State, TermEnergy, Rb87
+from .AtomNumbers import State, TermEnergy, Rb87
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
